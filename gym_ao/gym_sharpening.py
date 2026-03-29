@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import hcipy as hp
+import gymnasium as gym
 from gymnasium.spaces import Box
 
 # Global variables
@@ -21,8 +22,10 @@ DECOR_TIME = 30  # s
 PL_IDX = -2.5
 
 
-class Sharpening_AO_system():
+class Sharpening_AO_system(gym.Env):
     def __init__(self):
+        super().__init__()  # 初始化父类
+        self.avg_rewards = []
         self.diameter = DIAMETER
         self.wavelength = WAVELENGTH
         self.pupil_grid = hp.make_pupil_grid(RESOLUTION, self.diameter)
@@ -60,7 +63,7 @@ class Sharpening_AO_system():
         self.episode = 0
         self.tot_rewards = []
         self.reward_range = (0, np.inf)
-        self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 8))
+        # self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 8))
         self.wf_rms = WF_RMS
 
     def step(self, action):
@@ -76,24 +79,37 @@ class Sharpening_AO_system():
         self.strehls.append(self.strehl)
         self.reward = self.strehl
         self.ep_reward += self.reward
-        self.terminated = False
         self.truncated = self.reward < 0.01
+        self.truncated = False
         self.iteration += 1
         info = {}
         return self.observation.shaped, self.reward, self.terminated, \
             self.truncated, info
 
-    def reset(self):
+    def reset(self, seed=None, options=None):
+        # 3. 按照 Gymnasium 标准处理 seed
+        super().reset(seed=seed)
+
         self.reset_actuators()
         if hasattr(self, 'ep_reward'):
+            avg_r = self.ep_reward / max(self.iteration, 1)
+            self.avg_rewards.append(avg_r)
             self.tot_rewards.append(self.ep_reward)
+
         self.ep_reward = 0
         self.tot_image = 0
         self.strehls = []
-        observation = self.step(np.zeros(self.num_modes))[0]
         self.iteration = 0
+
+        # 4. 调用 step 并获取 observation
+        # 注意：step 返回 5 个值，我们取第 1 个
+        step_results = self.step(np.zeros(self.num_modes))
+        observation = step_results[0]
+
         self.episode += 1
-        return observation
+
+        # 5. 关键：必须返回 (obs, info)
+        return observation, {}
 
     def render(self):
         for ax in self.axes.ravel():

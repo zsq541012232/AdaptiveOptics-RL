@@ -33,9 +33,9 @@ def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
         "cbam_depth": 1,
         "use_pretrained_resnet": False,
         "resnet_input_size": None,
-        "features_dim": 256,
+        "features_dim": 256 // 4,
         "tensorboard_log_dir": "runs",
-        "render_during_training": False,
+        "render_during_training": True,
         "render_every_n_steps": 200,
         "total_timesteps": 2_000,
         "buffer_size": 10_000,
@@ -76,7 +76,9 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
 
 
 def run_training(config: Dict[str, Any], group_name: str):
-    env = CustomEnvWrapper(name=config["env_name"], use_image_observation=config["use_image_observation"])
+    env = CustomEnvWrapper(name=config["env_name"],
+                           use_image_observation=config["use_image_observation"],
+                           render_mode="animation" if config.get("render_during_training") else None)
     run_num = get_run_num(group_name=group_name)
     model = build_model(config=config, env=env)
     callback = TensorboardCustomCallback(
