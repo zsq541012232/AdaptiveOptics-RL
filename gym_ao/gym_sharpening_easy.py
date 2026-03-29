@@ -12,7 +12,7 @@ F_NUMBER = 40
 OVERSAMPLING = 3  # pixels
 N_AIRY = 8
 N_PHOTONS = 1e10
-N_MODES = 20
+N_MODES = 15
 N_ACT_ACROSS = 20
 MODE_BASIS = 'zernike'
 FILTERED = True  # easy mode
@@ -88,15 +88,16 @@ class Sharpening_AO_system_easy(gym.Env):  # 1. 继承 gym.Env
         self.ep_reward += self.reward
 
         self.terminated = False
-        # Easy 模式原本有 truncation 逻辑：self.reward < 0.01
-        self.truncated = self.reward < 0.01
+        self.truncated = bool(self.reward < 0.01)  # Explicitly cast to bool
         self.iteration += 1
 
-        return self.observation.shaped, self.reward, self.terminated, \
-            self.truncated, {}
+        # EXPLICIT CASTING: Strip HCIPy properties before handing to SB3
+        obs_array = np.asarray(self.observation.shaped, dtype=np.float32)
+        reward_float = float(self.reward)
+
+        return obs_array, reward_float, self.terminated, self.truncated, {}
 
     def reset(self, seed=None, options=None):
-        # 3. 按照 Gymnasium 标准处理 seed
         super().reset(seed=seed)
 
         self.reset_actuators()
@@ -110,66 +111,76 @@ class Sharpening_AO_system_easy(gym.Env):  # 1. 继承 gym.Env
         self.strehls = []
         self.iteration = 0
 
-        # 4. 调用 step 并获取初始 observation
         step_results = self.step(np.zeros(self.num_modes))
-        observation = step_results[0]
+
+        # EXPLICIT CASTING
+        observation = np.asarray(step_results[0], dtype=np.float32)
 
         self.episode += 1
-        # 5. 返回 (obs, info)
         return observation, {}
 
-    def render(self):
-        # 如果还没初始化画布，则初始化
-        if self.fig is None:
-            self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 8))
-
-        for ax in self.axes.ravel():
-            ax.cla()
-
-        # Plot focal plane image
-        plt.sca(self.axes[0, 0])
-        plt.axis('off')
-        plt.title(f'Image, Strehl: {self.strehl * 100:.2f}%')
-        im1 = hp.imshow_field(self.image, cmap='viridis', vmin=0)
-        if self.iteration == 1:  # 使用 iteration 判断是否添加 colorbar
-            self.cbar1 = plt.colorbar(im1, ax=self.axes[0, 0])
-        else:
-            self.cbar1.update_normal(im1)
-
-        plt.sca(self.axes[0, 1])
-        im2 = hp.imshow_field(np.log10(self.image), vmax=0,
-                              vmin=-4, cmap='inferno')
-        plt.axis('off')
-        plt.title(f'log10 Image')
-        if self.iteration == 1:
-            self.cbar2 = plt.colorbar(im2, ax=self.axes[0, 1])
-        else:
-            self.cbar2.update_normal(im2)
-
-        # Plot mirror shape
-        plt.sca(self.axes[1, 0])
-        dm_phase = self.deformable_mirror.phase_for(self.wavelength) * self.aperture
-        vmax = np.max(np.abs(dm_phase))
-        im3 = hp.imshow_field(dm_phase, cmap='bwr', vmin=-vmax, vmax=vmax)
-        plt.axis('off')
-        plt.title('Deformable mirror shape')
-        if self.iteration == 1:
-            self.cbar3 = plt.colorbar(im3, ax=self.axes[1, 0])
-        else:
-            self.cbar3.update_normal(im3)
-
-        plt.sca(self.axes[1, 1])
-        if self.episode > 1:
-            plt.plot(np.arange(len(self.tot_rewards)), self.tot_rewards, marker='o',
-                     color='black')
-            plt.ylabel('Episode reward')
-            plt.xlabel('Episode')
-        plt.suptitle(f'Episode: {self.episode}, iteration: {self.iteration}')
-        plt.tight_layout()
-        plt.draw()
-        plt.pause(0.001)
-
-    # ... (其余 get_random_aberration, update_aberration, get_image, make_dm 等方法保持不变) ...
+    # def render(self):
+    #     # 1. 初始化阶段：只在第一次调用时创建画布和对象
+    #     if self.fig is None:
+    #         plt.ion()  # 开启交互模式
+    #         self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 8))
+    #
+    #         # --- 初始化图1 (Image) ---
+    #         self.axes[0, 0].axis('off')
+    #         self.title1 = self.axes[0, 0].set_title('')
+    #         # 注意：使用 .shaped 提取纯 NumPy 数组，配合原生 imshow 速度最快
+    #         self.im1 = self.axes[0, 0].imshow(self.image.shaped, cmap='viridis', vmin=0)
+    #         self.fig.colorbar(self.im1, ax=self.axes[0, 0])
+    #
+    #         # --- 初始化图2 (log10 Image) ---
+    #         self.axes[0, 1].axis('off')
+    #         self.title2 = self.axes[0, 1].set_title('log10 Image')
+    #         self.im2 = self.axes[0, 1].imshow(np.log10(self.image.shaped + 1e-12), vmax=0, vmin=-4, cmap='inferno')
+    #         self.fig.colorbar(self.im2, ax=self.axes[0, 1])
+    #
+    #         # --- 初始化图3 (DM Shape) ---
+    #         self.axes[1, 0].axis('off')
+    #         self.title3 = self.axes[1, 0].set_title('Deformable mirror shape')
+    #         dm_phase = self.deformable_mirror.phase_for(self.wavelength) * self.aperture
+    #         self.im3 = self.axes[1, 0].imshow(dm_phase.shaped, cmap='bwr', vmin=-1, vmax=1)
+    #         self.fig.colorbar(self.im3, ax=self.axes[1, 0])
+    #
+    #         # --- 初始化图4 (Rewards 折线图) ---
+    #         # 保持对折线对象 self.line 的引用
+    #         self.line, = self.axes[1, 1].plot([], [], marker='o', color='black')
+    #         self.axes[1, 1].set_ylabel('Episode reward')
+    #         self.axes[1, 1].set_xlabel('Episode')
+    #
+    #         self.suptit = self.fig.suptitle('')
+    #         self.fig.tight_layout()
+    #         self.fig.show()
+    #
+    #     # 2. 数据更新阶段：极速刷新，不引起任何内存泄漏
+    #     # 更新图1
+    #     self.im1.set_data(self.image.shaped)
+    #     self.title1.set_text(f'Image, Strehl: {self.strehl * 100:.2f}%')
+    #
+    #     # 更新图2
+    #     self.im2.set_data(np.log10(self.image.shaped + 1e-12))
+    #
+    #     # 更新图3 (动态调整 colorbar 极值)
+    #     dm_phase = self.deformable_mirror.phase_for(self.wavelength) * self.aperture
+    #     vmax = np.max(np.abs(dm_phase.shaped)) + 1e-9
+    #     self.im3.set_data(dm_phase.shaped)
+    #     self.im3.set_clim(vmin=-vmax, vmax=vmax)  # 动态更新色阶范围
+    #
+    #     # 更新图4
+    #     if self.episode > 1:
+    #         self.line.set_data(np.arange(len(self.tot_rewards)), self.tot_rewards)
+    #         self.axes[1, 1].relim()  # 重新计算坐标轴限制
+    #         self.axes[1, 1].autoscale_view()  # 自动缩放视野适配新数据
+    #
+    #     self.suptit.set_text(f'Episode: {self.episode}, iteration: {self.iteration}')
+    #
+    #     # 3. 强制刷新 GUI 事件循环
+    #     self.fig.canvas.draw()
+    #     self.fig.canvas.flush_events()
+    #     # 移除了 plt.pause()，因为它容易与主线程抢占资源导致假死
 
     def close(self):
         if self.fig is not None:

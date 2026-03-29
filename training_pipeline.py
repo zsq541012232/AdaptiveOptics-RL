@@ -8,7 +8,7 @@ from stable_baselines3 import A2C, SAC
 
 from callbacks import TensorboardCustomCallback
 from EnvironmentWrapper import CustomEnvWrapper
-from rl_feature_extractors import ResNetFeatureExtractor
+from rl_feature_extractors import ResNetFeatureExtractor, SimpleCNNFeatureExtractor
 
 ALGORITHMS = {
     "A2C": A2C,
@@ -30,7 +30,6 @@ def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
         "use_image_observation": True,
         "resnet_backbone": "resnet18",
         "use_cbam": False,
-        "cbam_depth": 1,
         "use_pretrained_resnet": False,
         "resnet_input_size": None,
         "features_dim": 256 // 4,
@@ -57,16 +56,23 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
     )
 
     if config["policy_type"] == "CnnPolicy":
-        common_kwargs["policy_kwargs"] = dict(
-            features_extractor_class=ResNetFeatureExtractor,
-            features_extractor_kwargs=dict(
+        # 根据配置选择类
+        if config.get("use_simple_cnn", False):
+            extractor_class = SimpleCNNFeatureExtractor
+            extractor_kwargs = dict(features_dim=config["features_dim"])
+        else:
+            extractor_class = ResNetFeatureExtractor
+            extractor_kwargs = dict(
                 backbone=config["resnet_backbone"],
                 use_cbam=config["use_cbam"],
-                cbam_depth=config.get("cbam_depth", 1),
                 pretrained=config["use_pretrained_resnet"],
                 input_size=config.get("resnet_input_size"),
                 features_dim=config["features_dim"],
-            ),
+            )
+
+        common_kwargs["policy_kwargs"] = dict(
+            features_extractor_class=extractor_class,
+            features_extractor_kwargs=extractor_kwargs,
             share_features_extractor=False,
         )
 

@@ -84,89 +84,73 @@ class CustomEnvWrapper(gym.Env):
         # 返回格式化后的 obs 和原有的 info 字典
         return formatted_obs, info
 
-    def render(self, mode='animation', episode=None, iteration=None, tot_rewards=None, loc='test'):
-        # 核心修复：获取被 TimeLimit 包装的原始环境实例
+    def render(self, mode='animation', **kwargs):
         actual_env = self.env.unwrapped
+        if mode != 'animation':
+            return
 
-        if mode == 'animation':
-            if not plt.isinteractive():
-                plt.ion()
-            if not hasattr(self, 'fig'):
-                self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 10))
+        # 1. 初始化：只创建一次图形对象
+        if not hasattr(self, 'fig') or self.fig is None:
+            plt.ion()
+            # 增加 figsize 比例，减少重绘压力
+            self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 8))
+            self.im1 = None
+            self.im2 = None
+            self.im3 = None
+            self.line = None
 
-            for ax in self.axes.ravel():
-                ax.cla()
+        # 2. 图像更新逻辑 (避免使用 ax.cla() 和 hp.imshow_field)
+        # 获取纯数据 (NumPy 数组)
+        img_data = np.asarray(actual_env.image.shaped)
+        dm_data = actual_env.deformable_mirror.phase_for(actual_env.wavelength) * actual_env.aperture
+        dm_data = np.asarray(dm_data.shaped)
 
-            # ---------------------------------------------------------
-            # 1. 左上：Focal Plane Image
-            # ---------------------------------------------------------
-            plt.sca(self.axes[0, 0])
-            plt.axis('off')
-            plt.title('Intensity Image')
-            # 修复：使用实际环境中的 image 属性
-            im1 = hp.imshow_field(actual_env.image, cmap='viridis', vmin=0)
-            if hasattr(self, 'cbar1'):
-                self.cbar1.update_normal(im1)
-            else:
-                self.cbar1 = plt.colorbar(im1)
+        # 图 1: Intensity
+        if self.im1 is None:
+            self.im1 = self.axes[0, 0].imshow(img_data, cmap='viridis', vmin=0)
+            self.axes[0, 0].set_title('Intensity Image')
+            self.fig.colorbar(self.im1, ax=self.axes[0, 0])
+        else:
+            self.im1.set_data(img_data)
 
-            # ---------------------------------------------------------
-            # 2. 右上：Log10 Image
-            # ---------------------------------------------------------
-            plt.sca(self.axes[0, 1])
-            # 修复：使用实际环境中的 image 属性
-            im2 = hp.imshow_field(np.log10(actual_env.image), vmax=0, vmin=-4, cmap='inferno')
-            plt.axis('off')
-            plt.title('log10 Image')
-            if hasattr(self, 'cbar2'):
-                self.cbar2.update_normal(im2)
-            else:
-                self.cbar2 = plt.colorbar(im2)
+        # 图 2: Log10
+        log_img = np.log10(img_data + 1e-12)
+        if self.im2 is None:
+            self.im2 = self.axes[0, 1].imshow(log_img, vmax=0, vmin=-4, cmap='inferno')
+            self.axes[0, 1].set_title('log10 Image')
+            self.fig.colorbar(self.im2, ax=self.axes[0, 1])
+        else:
+            self.im2.set_data(log_img)
 
-            # ---------------------------------------------------------
-            # 3. 左下：Mirror Shape
-            # ---------------------------------------------------------
-            plt.sca(self.axes[1, 0])
-            # 修复：从实际环境中获取 DM 相位和孔径
-            dm_phase = actual_env.deformable_mirror.phase_for(actual_env.wavelength) * actual_env.aperture
-            vmax = np.max(np.abs(dm_phase)) if np.max(np.abs(dm_phase)) > 0 else 0.1
-            im3 = hp.imshow_field(dm_phase, cmap='bwr', vmin=-vmax, vmax=vmax)
-            plt.axis('off')
-            plt.title('DM Phase')
-            if hasattr(self, 'cbar3'):
-                self.cbar3.update_normal(im3)
-            else:
-                self.cbar3 = plt.colorbar(im3)
+        # 图 3: DM Phase
+        vmax = np.max(np.abs(dm_data)) + 1e-9
+        if self.im3 is None:
+            self.im3 = self.axes[1, 0].imshow(dm_data, cmap='bwr', vmin=-vmax, vmax=vmax)
+            self.axes[1, 0].set_title('DM Phase')
+            self.fig.colorbar(self.im3, ax=self.axes[1, 0])
+        else:
+            self.im3.set_data(dm_data)
+            self.im3.set_clim(vmin=-vmax, vmax=vmax)
 
-            # ---------------------------------------------------------
-            # 4. 右下：Average Reward Plot
-            # ---------------------------------------------------------
-            plt.sca(self.axes[1, 1])
-            # 修复：检查实际环境中的历史奖励记录
-            if hasattr(actual_env, 'avg_rewards') and len(actual_env.avg_rewards) > 0:
-                plt.plot(actual_env.avg_rewards, marker='.', color='blue', linestyle='-')
-                plt.title('History: Avg Reward per Episode')
-                plt.xlabel('Episode')
-                plt.ylabel('Mean Reward')
-                plt.grid(True, alpha=0.3)
+        # ---------------------------------------------------------
+        # 4. 右下：Average Reward Plot
+        # ---------------------------------------------------------
+        plt.sca(self.axes[1, 1])
+        # 修复：检查实际环境中的历史奖励记录
+        if hasattr(actual_env, 'avg_rewards') and len(actual_env.avg_rewards) > 0:
+            plt.plot(actual_env.avg_rewards, marker='.', color='blue', linestyle='-')
+            plt.title('History: Avg Reward per Episode')
+            plt.xlabel('Episode')
+            plt.ylabel('Mean Reward')
+            plt.grid(True, alpha=0.3)
 
-            # ---------------------------------------------------------
-            # 5. 顶部总标题：显示 Strehl, Episode, Steps
-            # ---------------------------------------------------------
-            # 修复：获取实际环境的状态变量
-            strehl_val = actual_env.strehl * 100
-            curr_ep = actual_env.episode
-            curr_step = actual_env.iteration
+        # 更新标题
+        self.fig.suptitle(
+            f"Ep: {actual_env.episode} | Step: {actual_env.iteration} | Strehl: {actual_env.strehl * 100:.2f}%")
 
-            self.fig.suptitle(
-                f"Episode: {curr_ep} | Step: {curr_step} | Strehl: {strehl_val:.2f}%",
-                fontsize=16, fontweight='bold', y=0.95
-            )
-
-            plt.tight_layout(rect=[0, 0.03, 1, 0.95])
-            self.fig.canvas.draw_idle()
-            self.fig.canvas.flush_events()
-            plt.pause(0.001)
+        # 3. 关键刷新指令
+        self.fig.canvas.draw_idle()
+        self.fig.canvas.flush_events()
 
     def close(self):
         if hasattr(self.env, "close"):
