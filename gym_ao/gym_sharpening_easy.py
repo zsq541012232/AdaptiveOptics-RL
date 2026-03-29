@@ -11,7 +11,7 @@ F_NUMBER = 40
 OVERSAMPLING = 3  # pixels 
 N_AIRY = 8 # size of the focal plane image
 N_PHOTONS = 1e10
-N_MODES = 9 # used if MODE_BASIS = 'zernike'
+N_MODES = 20 # used if MODE_BASIS = 'zernike'
 N_ACT_ACROSS = 20 # used if MODE_BASIS = 'actuators'
 MODE_BASIS = 'zernike' # 'zernike' or 'actuators'
 FILTERED = True # easy mode
