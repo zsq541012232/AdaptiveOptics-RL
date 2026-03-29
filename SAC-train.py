@@ -5,8 +5,8 @@ config.update(
     {
         "resnet_backbone": "resnet34",
         "use_cbam": True,
-        "total_timesteps": 10_000,
-        "buffer_size": 2_000,
+        "total_timesteps": 100_000,
+        "buffer_size": 200_000,
     }
 )
 

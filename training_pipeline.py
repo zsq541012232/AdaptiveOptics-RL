@@ -64,8 +64,8 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
 
 
 def setup_wandb(config: Dict[str, Any], group_name: str, project: str):
-    os.environ.setdefault("WANDB_MODE", "offline")
-    api = wandb.Api()
+    # os.environ.setdefault("WANDB_MODE", "offline")
+    api = wandb.Api(api_key="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")
     runs = api.runs(project)
     run_num = get_run_num(runs, group_name)
     run = wandb.init(
