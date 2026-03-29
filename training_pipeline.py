@@ -7,7 +7,7 @@ import torch as th
 from stable_baselines3 import A2C, SAC
 
 from callbacks import TensorboardCustomCallback
-from EnvironmentWrapper import CustomEnvWrapper
+from env_adapter import CustomEnvWrapper
 from rl_feature_extractors import ResNetFeatureExtractor, SimpleCNNFeatureExtractor
 
 ALGORITHMS = {
