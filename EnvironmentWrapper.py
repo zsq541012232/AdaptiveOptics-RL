@@ -48,10 +48,15 @@ class CustomEnvWrapper(gym.Env):
             )
 
     def _format_observation(self, observation):
-        if hasattr(observation, "shaped"):
-            observation = observation.shaped
+        if isinstance(observation, hp.Field):
+            observation = np.asarray(observation, dtype=np.float32)
+        else:
+            observation = np.asarray(observation, dtype=np.float32)
 
-        observation = np.asarray(observation, dtype=np.float32)
+        if self.use_image_observation and observation.ndim == 1 and len(self._base_observation_shape) == 2:
+            expected_size = int(np.prod(self._base_observation_shape))
+            if observation.size == expected_size:
+                observation = observation.reshape(self._base_observation_shape)
 
         if self.use_image_observation and observation.ndim == 2:
             return observation[None, ...]
