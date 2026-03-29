@@ -1,0 +1,31 @@
+<component name="InspectionProjectProfileManager">
+  <profile version="1.0">
+    <option name="myName" value="Project Default" />
+    <inspection_tool class="Eslint" enabled="true" level="WARNING" enabled_by_default="true" />
+    <inspection_tool class="PyPackageRequirementsInspection" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="pytorch" />
+          <option value="matplotlib" />
+          <option value="anyio" />
+          <option value="argon2-cffi" />
+          <option value="astropy" />
+          <option value="beautifulsoup4" />
+          <option value="ipykernel" />
+          <option value="ipywidgets" />
+          <option value="jupyterlab" />
+          <option value="notebook" />
+          <option value="scikit-learn" />
+          <option value="pyqt5-sip" />
+        </list>
+      </option>
+    </inspection_tool>
+    <inspection_tool class="PyStubPackagesAdvertiser" enabled="true" level="WARNING" enabled_by_default="true">
+      <option name="ignoredPackages">
+        <list>
+          <option value="pandas" />
+        </list>
+      </option>
+    </inspection_tool>
+  </profile>
+</component>
