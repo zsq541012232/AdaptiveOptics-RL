@@ -4,17 +4,17 @@
 
 - AO 环境（Sharpening / Centering / Darkhole）。
 - A2C / SAC 训练。
-- 图像观测下的 `ResNet + CBAM` 特征提取器。
+- 图像观测下的 `ResNet` 特征提取器。
+- 从零实现的自定义 `Adaptive PPO`（支持大尺寸图像输入与 GPU 训练）。
 - TensorBoard 训练记录。
 
 ---
 
 ## 1. 你关心的几个关键点（结论）
 
-### 1) ResNet+CBAM 支持预训练权重、**增加 CBAM 深度**、输入尺寸对齐、并保证 actor 可学习更新
+### 1) ResNet 支持预训练权重、输入尺寸对齐、并保证 actor 可学习更新
 本仓库已支持：
 
-- 主干网络仍可用 `resnet18 / resnet34 / resnet50 / resnet101`，但重点是可以通过 `cbam_depth` 增加每个 stage 的注意力模块深度（例如 `cbam_depth=2`）。
 - 可通过 `use_pretrained_resnet=True` 加载 torchvision 的 ImageNet 预训练权重。
 - 当环境图像尺寸和 ResNet 期望输入不一致时，可配置 `resnet_input_size=(224, 224)`，在特征提取器内部自动双线性 resize。
 - SAC 下显式设置 `share_features_extractor=False`，确保 actor 与 critic 分别拥有特征提取器参数，actor 路径中的提取器会参与 actor 反向传播更新（只要不冻结参数）。
@@ -50,7 +50,7 @@ config.update({
 
 建议最小可行优化：
 
-- `resnet34 + pretrained + CBAM(depth=2)`（已在示例配置）
+- `resnet34 + pretrained`
 - `buffer_size >= 200000`
 - `total_timesteps >= 300000`
 - 先关闭 render，提高吞吐，稳定后再开启。
@@ -62,7 +62,7 @@ config.update({
 2. **Residual RL**：动作 = `a_spgd + a_rl`，RL 只学残差修正。
 3. **Imitation/Offline 初始化**：先用 SPGD 轨迹预训练策略，再在线 SAC 微调。
 
-### 5) 你已有“图像预测泽尼克系数”的 ResNet+CBAM 模型能否复用？
+### 5) 你已有“图像预测泽尼克系数”的模型能否复用？
 可以，推荐两种方式：
 
 1. **作为特征提取器初始化权重**：把 encoder 主干权重加载到 `ResNetFeatureExtractor`。
@@ -96,6 +96,12 @@ python SAC-train.py
 python A2C-train.py
 ```
 
+### 训练（Adaptive PPO，自定义算法）
+
+```bash
+python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 400000 --device cuda
+```
+
 ---
 
 ## 3. 关键配置说明（`training_pipeline.py`）
@@ -103,14 +109,13 @@ python A2C-train.py
 - `policy_type`: `CnnPolicy` 或 `MlpPolicy`
 - `use_image_observation`: 是否用图像观测
 - `resnet_backbone`: `resnet18/34/50/101`
-- `use_cbam`: 是否启用 CBAM
-- `cbam_depth`: 每个残差块后串联多少个 CBAM（>=1）
 - `use_pretrained_resnet`: 是否加载预训练权重
 - `resnet_input_size`: 输入对齐尺寸，例如 `(224, 224)`
 - `features_dim`: 投影后的特征维度
 - `tensorboard_log_dir`: TensorBoard 日志目录（默认 `runs`）
 - `render_during_training`: 训练时实时渲染开关
 - `render_every_n_steps`: 渲染频率
+- `encoder_max_side`（Adaptive PPO 参数）: 大图在编码器内按比例缩放到该边长以内（默认 512），可支持最大到 2048×2048 输入
 
 ---
 
@@ -136,7 +141,9 @@ python A2C-train.py
 ## 5. 项目结构
 
 - `training_pipeline.py`：统一训练入口。
-- `rl_feature_extractors.py`：`ResNetFeatureExtractor` 与 CBAM。
+- `rl_feature_extractors.py`：`ResNetFeatureExtractor` 与 `SimpleCNNFeatureExtractor`。
 - `EnvironmentWrapper.py`：环境封装与观测格式。
+- `adaptive_ppo.py`：从零实现的 Adaptive PPO（GAE、PPO-Clip、混合精度）。
+- `train_adaptive_ppo.py`：Adaptive PPO 训练入口。
 - `SAC-train.py` / `A2C-train.py`：单次训练脚本。
 - `SAC-experiment.py` / `A2C-experiment.py`：多次实验脚本。

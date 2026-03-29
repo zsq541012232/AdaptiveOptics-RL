@@ -5,7 +5,6 @@ config.update(
     {
         "use_simple_cnn": False,
         "resnet_backbone": "resnet34",
-        "use_cbam": False,
         "use_pretrained_resnet": False,
         "resnet_input_size": (16, 16),
         "features_dim": 256 // 4,
@@ -18,5 +17,5 @@ config.update(
 
 run_training(
     config=config,
-    group_name="SAC-resnet34-cbamx2-pretrained",
+    group_name="SAC-resnet34",
 )

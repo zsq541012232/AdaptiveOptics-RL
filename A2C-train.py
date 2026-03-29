@@ -4,7 +4,6 @@ config = default_config(algorithm="A2C", env_name="Sharpening_AO_system")
 config.update(
     {
         "resnet_backbone": "resnet18",
-        "use_cbam": False,
         "total_timesteps": 10_000,
     }
 )
