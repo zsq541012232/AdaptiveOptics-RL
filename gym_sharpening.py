@@ -14,7 +14,7 @@ N_AIRY = 8 # size of the focal plane image
 N_PHOTONS = 1e10
 N_MODES = 20 # used if MODE_BASIS = 'zernike'
 N_ACT_ACROSS = 20 # used if MODE_BASIS = 'actuators'
-MODE_BASIS = 'zernike' # 'zernike' or 'actuators'
+MODE_BASIS = 'actuators' # 'zernike' or 'actuators'
 FILTERED = False # hard mode
 WF_RMS = 1.7 # rms of the wavefront error
 DT = 1  # s
@@ -80,7 +80,7 @@ class Sharpening_AO_system(gym.Env):
         self.reward = self.strehl
         self.ep_reward += self.reward
         self.truncated = self.reward < 0.01
-        self.truncated = False
+        self.terminated = False
         self.iteration += 1
         info = {}
         return self.observation.shaped, self.reward, self.terminated, \

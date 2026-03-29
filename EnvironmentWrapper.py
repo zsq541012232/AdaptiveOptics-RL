@@ -4,9 +4,6 @@ matplotlib.use('TkAgg')
 import gymnasium as gym
 import numpy as np
 from gym_sharpening import Sharpening_AO_system
-from gym_ao.gym_centering import Centering_AO_system
-from gym_ao.gym_sharpening_easy import Sharpening_AO_system_easy
-from gym_ao.gym_darkhole import Darkhole_AO_system
 import hcipy as hp
 import matplotlib.pyplot as plt
 from gymnasium.wrappers import TimeLimit
@@ -19,12 +16,6 @@ class CustomEnvWrapper(gym.Env):
 
         if name == "Sharpening_AO_system":
             self.env = Sharpening_AO_system()
-        elif name == "Sharpening_AO_system_easy":
-            self.env = Sharpening_AO_system_easy()
-        elif name == "Centering_AO_system":
-            self.env = Centering_AO_system()
-        elif name == "Darkhole_AO_system":  # needs fixing for observation space
-            self.env = Darkhole_AO_system()
         else:
             raise ValueError(f"Invalid environment name: {name}")
 
