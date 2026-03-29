@@ -242,7 +242,6 @@ class AdaptivePPOTrainer:
 
             n_samples = obs_b.shape[0]
             effective_batch_size = min(self.config.batch_size, n_samples)
-            policy_losses, value_losses, entropy_values = [], [], []
             for _ in range(self.config.epochs):
                 indices = torch.randperm(n_samples, device=self.device)
                 for start in range(0, n_samples, effective_batch_size):
@@ -268,24 +267,12 @@ class AdaptivePPOTrainer:
                     if not torch.isfinite(loss):
                         raise RuntimeError("Detected non-finite PPO loss. Please lower learning rate or action range.")
 
-                    policy_losses.append(float(policy_loss.detach().item()))
-                    value_losses.append(float(value_loss.detach().item()))
-                    entropy_values.append(float(entropy.mean().detach().item()))
-
                     self.optimizer.zero_grad(set_to_none=True)
                     self.scaler.scale(loss).backward()
                     self.scaler.unscale_(self.optimizer)
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
-
-            if self.writer is not None:
-                if policy_losses:
-                    self.writer.add_scalar("train/policy_loss", float(np.mean(policy_losses)), global_step)
-                    self.writer.add_scalar("train/value_loss", float(np.mean(value_losses)), global_step)
-                    self.writer.add_scalar("train/entropy", float(np.mean(entropy_values)), global_step)
-                if episode_rewards:
-                    self.writer.add_scalar("train/mean_reward_20", float(np.mean(episode_rewards[-20:])), global_step)
 
             rollout_id += 1
             if rollout_id % 10 == 0:
@@ -294,9 +281,6 @@ class AdaptivePPOTrainer:
                     f"[PPO] step={global_step}/{self.config.total_timesteps}, "
                     f"episodes={len(episode_rewards)}, mean_recent_reward={float(np.mean(recent)):.5f}"
                 )
-
-        if self.writer is not None:
-            self.writer.flush()
 
         return {
             "episodes": float(len(episode_rewards)),
