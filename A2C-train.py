@@ -1,66 +1,16 @@
-import gymnasium as gym
-import numpy as np
-from stable_baselines3 import A2C
-from stable_baselines3.common.callbacks import BaseCallback
-from helper import LearningCurvePlot, smooth
-from gym_ao.gym_ao.gym_sharpening import Sharpening_AO_system
-import wandb
-from callbacks import WandbCustomCallback
+from training_pipeline import default_config, run_training
 
-# Set up Weights and Biases
-
-config = {
-    "policy_type": "MlpPolicy",
-    "env_name": "Sharpening_AO_system"
-}
-
-api = wandb.Api()
-
-runs = api.runs("adapt_opt/sharpening-ao-system")
-
-group_name = "A2C-test"
-
-run_num = 0
-for run in runs:
-    if group_name in run.name:
-        run_num += 1
-
-run = wandb.init(
-    group=group_name,
-    name=f"A2C-test-run-{run_num}",
-    project="sharpening-ao-system",
-    entity="adapt_opt",
-    config=config,
-    sync_tensorboard=True,
+config = default_config(algorithm="A2C", env_name="Sharpening_AO_system")
+config.update(
+    {
+        "resnet_backbone": "resnet18",
+        "use_cbam": False,
+        "total_timesteps": 10_000,
+    }
 )
 
-class CustomEnvWrapper(gym.Env):
-    def __init__(self):
-        # Initialize your Sharpening_AO_system environment here
-        self.env = Sharpening_AO_system()
-        self.action_space = gym.spaces.Box(low=-0.3, high=0.3, shape=(400,), dtype=np.float32)
-        self.observation_space = gym.spaces.Box(low=0, high=1., shape=self.env.observation_space.shape, dtype=np.float32)
-
-    def step(self, action):
-        observation, reward, done, trunc, info = self.env.step(action)
-        if done:
-            observation = self.reset()
-        if trunc:
-            observation = self.reset()
-        return observation, reward, done, info
-
-    def reset(self):
-        return self.env.reset()
-
-    def render(self, mode='human'):
-        self.env.render()
-
-# Create the Gym wrapper
-env = CustomEnvWrapper()
-
-# Create and train the TD3 model with the custom callback
-model = A2C("MlpPolicy", env, verbose=1)
-model.learn(total_timesteps=110, callback=WandbCustomCallback(), progress_bar=True)
-
-# Close the environment
-env.close()
+run_training(
+    config=config,
+    wandb_project="adapt_opt/sharpening-ao-system",
+    group_name="A2C-resnet18",
+)

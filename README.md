@@ -127,6 +127,8 @@ python SAC-train.py
 
 You may need to modify the scripts to change hyperparameters or the target environment.
 
+> New: both training scripts now default to `CnnPolicy` with a configurable ResNet feature extractor (`rl_feature_extractors.py`). You can switch backbone (`resnet18/34/50`) and enable CBAM attention in the `config.update({...})` block inside each training script.
+
 3. Running Experiments
 
 **A2C experiments:**
