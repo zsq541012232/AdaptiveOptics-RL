@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Dict, Iterable, Optional, Tuple
+from typing import Dict, Optional, Tuple
 
 import gymnasium as gym
 import torch
@@ -10,37 +10,8 @@ from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from torchvision import models
 
 
-class CBAMBlock(nn.Module):
-    """Convolutional Block Attention Module (CBAM)."""
-
-    def __init__(self, channels: int, reduction: int = 16, spatial_kernel_size: int = 7):
-        super().__init__()
-        hidden_channels = max(1, channels // reduction)
-        self.channel_mlp = nn.Sequential(
-            nn.Conv2d(channels, hidden_channels, kernel_size=1, bias=False),
-            nn.ReLU(inplace=True),
-            nn.Conv2d(hidden_channels, channels, kernel_size=1, bias=False),
-        )
-        self.channel_sigmoid = nn.Sigmoid()
-        self.spatial = nn.Sequential(
-            nn.Conv2d(2, 1, kernel_size=spatial_kernel_size, padding=spatial_kernel_size // 2, bias=False),
-            nn.Sigmoid(),
-        )
-
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        avg_pool = torch.mean(x, dim=(2, 3), keepdim=True)
-        max_pool = torch.amax(x, dim=(2, 3), keepdim=True)
-        channel_attention = self.channel_sigmoid(self.channel_mlp(avg_pool) + self.channel_mlp(max_pool))
-        x = x * channel_attention
-
-        avg_spatial = torch.mean(x, dim=1, keepdim=True)
-        max_spatial = torch.amax(x, dim=1, keepdim=True)
-        spatial_attention = self.spatial(torch.cat([avg_spatial, max_spatial], dim=1))
-        return x * spatial_attention
-
-
 class ResNetFeatureExtractor(BaseFeaturesExtractor):
-    """SB3 feature extractor using a configurable ResNet backbone and optional CBAM."""
+    """SB3 feature extractor using a configurable ResNet backbone."""
 
     _BACKBONES: Dict[str, callable] = {
         "resnet18": models.resnet18,
@@ -60,8 +31,6 @@ class ResNetFeatureExtractor(BaseFeaturesExtractor):
             observation_space: gym.Space,
             features_dim: int = 256,
             backbone: str = "resnet18",
-            use_cbam: bool = False,
-            cbam_reduction: int = 16,
             pretrained: bool = False,
             freeze_stem: bool = False,
             input_size: Optional[Tuple[int, int]] = None,
@@ -90,11 +59,6 @@ class ResNetFeatureExtractor(BaseFeaturesExtractor):
             # 移除降采样池化层，替换为恒等映射
             resnet.maxpool = nn.Identity()
 
-        if use_cbam:
-            resnet = self._inject_cbam(resnet, cbam_reduction)
-
-            # 【核心修改 1】：将 backbone 的定义移出 if 缩进，确保无论是否用 CBAM 都能工作
-            # 【核心修改 2】：切片到 -2，剥离原 ResNet 的全连接层和自带池化
         self.backbone = nn.Sequential(*list(resnet.children())[:-2])
         self.input_size = input_size
 
@@ -127,18 +91,6 @@ class ResNetFeatureExtractor(BaseFeaturesExtractor):
         if backbone not in cls._BACKBONES:
             supported = ", ".join(sorted(cls._BACKBONES))
             raise ValueError(f"Unsupported backbone '{backbone}'. Supported backbones: {supported}")
-
-    @staticmethod
-    def _inject_cbam(resnet: nn.Module, cbam_reduction: int) -> nn.Module:
-        for layer_name in ("layer1", "layer2", "layer3", "layer4"):
-            layer = getattr(resnet, layer_name)
-            blocks = []
-            for block in layer:
-                out_channels = block.conv2.out_channels if hasattr(block, "conv2") else block.conv3.out_channels
-                cbam = CBAMBlock(out_channels, reduction=cbam_reduction)
-                blocks.extend([block, cbam])
-            setattr(resnet, layer_name, nn.Sequential(*blocks))
-        return resnet
 
     def forward(self, observations: torch.Tensor) -> torch.Tensor:
         # 插值缩放逻辑保持不变

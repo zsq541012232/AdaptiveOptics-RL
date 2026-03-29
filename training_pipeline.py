@@ -29,7 +29,6 @@ def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
         "policy_type": "CnnPolicy",
         "use_image_observation": True,
         "resnet_backbone": "resnet18",
-        "use_cbam": False,
         "use_pretrained_resnet": False,
         "resnet_input_size": None,
         "features_dim": 256 // 4,
@@ -64,7 +63,6 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
             extractor_class = ResNetFeatureExtractor
             extractor_kwargs = dict(
                 backbone=config["resnet_backbone"],
-                use_cbam=config["use_cbam"],
                 pretrained=config["use_pretrained_resnet"],
                 input_size=config.get("resnet_input_size"),
                 features_dim=config["features_dim"],
