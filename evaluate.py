@@ -1,5 +1,4 @@
 from stable_baselines3 import SAC, A2C
-from callbacks import WandbCustomCallback
 from EnvironmentWrapper import CustomEnvWrapper
 import matplotlib.pyplot as plt
 import numpy as np

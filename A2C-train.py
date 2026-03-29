@@ -11,6 +11,5 @@ config.update(
 
 run_training(
     config=config,
-    wandb_project="adapt_opt/sharpening-ao-system",
     group_name="A2C-resnet18",
 )
