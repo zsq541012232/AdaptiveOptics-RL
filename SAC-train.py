@@ -1,9 +1,9 @@
 from training_pipeline import default_config, run_training
 
-config = default_config(algorithm="SAC", env_name="Sharpening_AO_system_easy")
+config = default_config(algorithm="SAC", env_name="Sharpening_AO_system")
 config.update(
     {
-        "use_simple_cnn": False,
+        "use_simple_cnn": True,
         "resnet_backbone": "resnet34",
         "use_pretrained_resnet": False,
         "resnet_input_size": (16, 16),
