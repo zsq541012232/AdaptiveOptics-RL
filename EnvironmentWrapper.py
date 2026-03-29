@@ -3,13 +3,12 @@ import matplotlib
 matplotlib.use('TkAgg')
 import gymnasium as gym
 import numpy as np
-from gym_ao.gym_sharpening import Sharpening_AO_system
+from gym_sharpening import Sharpening_AO_system
 from gym_ao.gym_centering import Centering_AO_system
 from gym_ao.gym_sharpening_easy import Sharpening_AO_system_easy
 from gym_ao.gym_darkhole import Darkhole_AO_system
 import hcipy as hp
 import matplotlib.pyplot as plt
-import os
 from gymnasium.wrappers import TimeLimit
 
 
