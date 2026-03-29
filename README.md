@@ -99,8 +99,16 @@ python A2C-train.py
 ### 训练（Adaptive PPO，自定义算法）
 
 ```bash
-python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 400000 --device cuda
+python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 120000 --device cuda
 ```
+
+训练时会输出 TensorBoard 日志路径，默认在 `runs/adaptive_ppo/`：
+
+```bash
+tensorboard --logdir runs/adaptive_ppo --port 6006
+```
+
+浏览器打开 `http://localhost:6006` 即可监控 `train/episode_reward`、`train/policy_loss`、`train/value_loss` 等指标。
 
 ---
 

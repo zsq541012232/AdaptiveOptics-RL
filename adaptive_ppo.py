@@ -8,6 +8,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 from torch.distributions import Normal
+from torch.utils.tensorboard import SummaryWriter
 
 
 class ResidualBlock(nn.Module):
@@ -139,13 +140,21 @@ class PPOConfig:
 
 
 class AdaptivePPOTrainer:
-    def __init__(self, env, model: ActorCritic, config: PPOConfig, device: str = "cuda"):
+    def __init__(
+        self,
+        env,
+        model: ActorCritic,
+        config: PPOConfig,
+        device: str = "cuda",
+        writer: SummaryWriter | None = None,
+    ):
         self.env = env
         self.model = model.to(device)
         self.config = config
         self.device = device
         self.optimizer = torch.optim.AdamW(self.model.parameters(), lr=config.lr, fused=(device == "cuda"))
         self.scaler = torch.amp.GradScaler("cuda", enabled=device == "cuda")
+        self.writer = writer
 
     @staticmethod
     def _to_tensor_obs(obs: np.ndarray, device: str) -> torch.Tensor:
@@ -206,6 +215,10 @@ class AdaptivePPOTrainer:
 
                 if done:
                     episode_rewards.append(running_reward)
+                    if self.writer is not None:
+                        self.writer.add_scalar("train/episode_reward", running_reward, global_step)
+                        episode_len = getattr(self.env.unwrapped, "iteration", 0) if hasattr(self.env, "unwrapped") else 0
+                        self.writer.add_scalar("train/episode_length", episode_len, global_step)
                     running_reward = 0.0
                     obs, _ = self.env.reset()
 

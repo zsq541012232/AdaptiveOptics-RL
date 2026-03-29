@@ -5,6 +5,7 @@ import json
 import os
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
 from env_adapter import CustomEnvWrapper
 from adaptive_ppo import ActorCritic, AdaptivePPOTrainer, PPOConfig
@@ -21,6 +22,8 @@ def parse_args():
     parser.add_argument("--encoder-max-side", default=256, type=int)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-path", default="models/adaptive_ppo.pt")
+    parser.add_argument("--tensorboard-log-dir", default="runs/adaptive_ppo", type=str)
+    parser.add_argument("--run-name", default=None, type=str)
     return parser.parse_args()
 
 
@@ -45,7 +48,10 @@ def main():
         epochs=args.epochs,
     )
 
-    trainer = AdaptivePPOTrainer(env=env, model=model, config=config, device=args.device)
+    run_name = args.run_name or f"ppo-{args.env_name}-{args.total_timesteps}steps"
+    writer = SummaryWriter(log_dir=os.path.join(args.tensorboard_log_dir, run_name))
+
+    trainer = AdaptivePPOTrainer(env=env, model=model, config=config, device=args.device, writer=writer)
     metrics = trainer.train()
 
     torch.save(
@@ -61,6 +67,9 @@ def main():
     )
 
     print(json.dumps(metrics, indent=2))
+    print(f"TensorBoard logs saved to: {os.path.join(args.tensorboard_log_dir, run_name)}")
+
+    writer.close()
     env.close()
 
 

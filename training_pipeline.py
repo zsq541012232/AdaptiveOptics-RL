@@ -31,12 +31,14 @@ def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
         "resnet_backbone": "resnet18",
         "use_pretrained_resnet": False,
         "resnet_input_size": None,
-        "features_dim": 256 // 4,
+        "features_dim": 128,
         "tensorboard_log_dir": "runs",
         "render_during_training": True,
         "render_every_n_steps": 200,
         "total_timesteps": 2_000,
-        "buffer_size": 10_000,
+        "buffer_size": 30_000,
+        "simple_cnn_width": 48,
+        "extractor_head_dropout": 0.1,
         "device": "cuda" if th.cuda.is_available() else "cpu",
     }
 
@@ -58,7 +60,11 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
         # 根据配置选择类
         if config.get("use_simple_cnn", False):
             extractor_class = SimpleCNNFeatureExtractor
-            extractor_kwargs = dict(features_dim=config["features_dim"])
+            extractor_kwargs = dict(
+                features_dim=config["features_dim"],
+                width=config.get("simple_cnn_width", 48),
+                head_dropout=config.get("extractor_head_dropout", 0.05),
+            )
         else:
             extractor_class = ResNetFeatureExtractor
             extractor_kwargs = dict(
@@ -66,6 +72,7 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
                 pretrained=config["use_pretrained_resnet"],
                 input_size=config.get("resnet_input_size"),
                 features_dim=config["features_dim"],
+                head_dropout=config.get("extractor_head_dropout", 0.1),
             )
 
         common_kwargs["policy_kwargs"] = dict(
