@@ -4,10 +4,9 @@ import os
 from typing import Any, Dict
 
 import torch as th
-import wandb
 from stable_baselines3 import A2C, SAC
 
-from callbacks import WandbCustomCallback
+from callbacks import TensorboardCustomCallback
 from EnvironmentWrapper import CustomEnvWrapper
 from rl_feature_extractors import ResNetFeatureExtractor
 
@@ -17,8 +16,10 @@ ALGORITHMS = {
 }
 
 
-def get_run_num(runs, group_name: str) -> int:
-    return sum(1 for run in runs if group_name in run.name)
+def get_run_num(group_name: str, models_dir: str = "models") -> int:
+    if not os.path.isdir(models_dir):
+        return 0
+    return sum(1 for run_name in os.listdir(models_dir) if run_name.startswith(f"{group_name}-"))
 
 
 def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
@@ -29,7 +30,13 @@ def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
         "use_image_observation": True,
         "resnet_backbone": "resnet18",
         "use_cbam": False,
+        "cbam_depth": 1,
+        "use_pretrained_resnet": False,
+        "resnet_input_size": None,
         "features_dim": 256,
+        "tensorboard_log_dir": "runs",
+        "render_during_training": False,
+        "render_every_n_steps": 200,
         "total_timesteps": 2_000,
         "buffer_size": 10_000,
         "device": "cuda" if th.cuda.is_available() else "cpu",
@@ -46,6 +53,7 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
         env=env,
         verbose=1,
         device=config["device"],
+        tensorboard_log=config.get("tensorboard_log_dir", "runs"),
     )
 
     if config["policy_type"] == "CnnPolicy":
@@ -54,8 +62,12 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
             features_extractor_kwargs=dict(
                 backbone=config["resnet_backbone"],
                 use_cbam=config["use_cbam"],
+                cbam_depth=config.get("cbam_depth", 1),
+                pretrained=config["use_pretrained_resnet"],
+                input_size=config.get("resnet_input_size"),
                 features_dim=config["features_dim"],
             ),
+            share_features_extractor=False,
         )
 
     if algorithm_name == "SAC":
@@ -63,28 +75,21 @@ def build_model(config: Dict[str, Any], env: CustomEnvWrapper):
     return A2C(**common_kwargs)
 
 
-def setup_wandb(config: Dict[str, Any], group_name: str, project: str):
-    # os.environ.setdefault("WANDB_MODE", "offline")
-    api = wandb.Api(api_key="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")
-    runs = api.runs(project)
-    run_num = get_run_num(runs, group_name)
-    run = wandb.init(
-        group=group_name,
-        name=f"{group_name}-{run_num}",
-        project=project.split("/")[-1],
-        entity=project.split("/")[0],
-        config=config,
-        sync_tensorboard=True,
-    )
-    return run, run_num
-
-
-def run_training(config: Dict[str, Any], wandb_project: str, group_name: str):
+def run_training(config: Dict[str, Any], group_name: str):
     env = CustomEnvWrapper(name=config["env_name"], use_image_observation=config["use_image_observation"])
-    run, run_num = setup_wandb(config=config, group_name=group_name, project=wandb_project)
+    run_num = get_run_num(group_name=group_name)
     model = build_model(config=config, env=env)
-    model.learn(total_timesteps=config["total_timesteps"], callback=WandbCustomCallback(), progress_bar=True)
+    callback = TensorboardCustomCallback(
+        render_during_training=config.get("render_during_training", False),
+        render_every_n_steps=config.get("render_every_n_steps", 1),
+    )
+    run_name = f"{group_name}-{run_num}"
+    model.learn(
+        total_timesteps=config["total_timesteps"],
+        callback=callback,
+        progress_bar=True,
+        tb_log_name=run_name,
+    )
     model.save(f"models/{group_name}-{run_num}")
-    wandb.finish()
     env.close()
-    return run
+    return run_name

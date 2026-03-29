@@ -5,6 +5,11 @@ config.update(
     {
         "resnet_backbone": "resnet34",
         "use_cbam": True,
+        "cbam_depth": 2,
+        "use_pretrained_resnet": True,
+        "resnet_input_size": (224, 224),
+        "render_during_training": False,  # set True to watch training live
+        "render_every_n_steps": 200,
         "total_timesteps": 100_000,
         "buffer_size": 200_000,
     }
@@ -12,6 +17,5 @@ config.update(
 
 run_training(
     config=config,
-    wandb_project="zsq541012232-wuhan-university/sharpening-ao-system",
-    group_name="SAC-resnet34-cbam",
+    group_name="SAC-resnet34-cbamx2-pretrained",
 )
