@@ -90,14 +90,6 @@ pip install -U stable-baselines3[extra] gymnasium torchvision tensorboard hcipy 
 python SAC-train.py
 ```
 
-训练后查看 TensorBoard：
-
-```bash
-tensorboard --logdir runs --port 6006
-```
-
-然后浏览器打开 `http://localhost:6006`。
-
 ### 训练（A2C）
 
 ```bash
@@ -119,7 +111,6 @@ python A2C-train.py
 - `tensorboard_log_dir`: TensorBoard 日志目录（默认 `runs`）
 - `render_during_training`: 训练时实时渲染开关
 - `render_every_n_steps`: 渲染频率
-- `print_every_n_steps`: 控制台打印 reward 的频率（0 表示不打印）
 
 ---
 
@@ -130,14 +121,6 @@ python A2C-train.py
 
 ### Q2: 为啥我开 render 后训练慢？
 渲染会显著降低吞吐，建议只在 debug 阶段开启，或增大 `render_every_n_steps`。
-
-### Q4: 训练时没有打印，也看不到 render，怎么排查？
-按下面顺序检查：
-
-1. `print_every_n_steps` 是否 > 0；如果是 0，默认不会每步打印。
-2. `render_during_training` 是否为 `True`。
-3. 当前是否是无图形界面环境（如远程服务器/容器）；这类环境即使调用 render 也可能看不到窗口。
-4. 训练日志是否已写入 `runs/`；可直接运行 TensorBoard 查看曲线。
 
 ### Q3: SAC reward 一直不涨怎么办？
 优先检查：

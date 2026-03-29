@@ -37,7 +37,6 @@ def default_config(algorithm: str, env_name: str) -> Dict[str, Any]:
         "tensorboard_log_dir": "runs",
         "render_during_training": False,
         "render_every_n_steps": 200,
-        "print_every_n_steps": 0,
         "total_timesteps": 2_000,
         "buffer_size": 10_000,
         "device": "cuda" if th.cuda.is_available() else "cpu",
@@ -83,7 +82,6 @@ def run_training(config: Dict[str, Any], group_name: str):
     callback = TensorboardCustomCallback(
         render_during_training=config.get("render_during_training", False),
         render_every_n_steps=config.get("render_every_n_steps", 1),
-        print_every_n_steps=config.get("print_every_n_steps", 0),
     )
     run_name = f"{group_name}-{run_num}"
     model.learn(
