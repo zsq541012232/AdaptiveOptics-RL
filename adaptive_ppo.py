@@ -124,16 +124,16 @@ class ActorCritic(nn.Module):
 
 @dataclass
 class PPOConfig:
-    total_timesteps: int = 400_000
-    rollout_steps: int = 2048
-    batch_size: int = 256
-    epochs: int = 10
+    total_timesteps: int = 120_000
+    rollout_steps: int = 512
+    batch_size: int = 128
+    epochs: int = 4
     gamma: float = 0.99
     gae_lambda: float = 0.95
     clip_range: float = 0.2
     value_coef: float = 0.5
-    entropy_coef: float = 0.01
-    lr: float = 3e-4
+    entropy_coef: float = 0.005
+    lr: float = 1e-4
     max_grad_norm: float = 0.5
     action_clip: float = 0.3
 
@@ -178,6 +178,7 @@ class AdaptivePPOTrainer:
             torch.backends.cudnn.benchmark = True
             torch.set_float32_matmul_precision("high")
 
+        rollout_id = 0
         while global_step < self.config.total_timesteps:
             rollout_obs, rollout_actions = [], []
             rollout_logp, rollout_rewards, rollout_dones, rollout_values = [], [], [], []
@@ -227,10 +228,11 @@ class AdaptivePPOTrainer:
             advantages_b = (advantages_b - advantages_b.mean()) / (advantages_b.std() + 1e-8)
 
             n_samples = obs_b.shape[0]
+            effective_batch_size = min(self.config.batch_size, n_samples)
             for _ in range(self.config.epochs):
                 indices = torch.randperm(n_samples, device=self.device)
-                for start in range(0, n_samples, self.config.batch_size):
-                    end = min(start + self.config.batch_size, n_samples)
+                for start in range(0, n_samples, effective_batch_size):
+                    end = min(start + effective_batch_size, n_samples)
                     idx = indices[start:end]
 
                     mb_obs = obs_b[idx]
@@ -249,12 +251,23 @@ class AdaptivePPOTrainer:
                         entropy_loss = -entropy.mean()
                         loss = policy_loss + self.config.value_coef * value_loss + self.config.entropy_coef * entropy_loss
 
+                    if not torch.isfinite(loss):
+                        raise RuntimeError("Detected non-finite PPO loss. Please lower learning rate or action range.")
+
                     self.optimizer.zero_grad(set_to_none=True)
                     self.scaler.scale(loss).backward()
                     self.scaler.unscale_(self.optimizer)
                     torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.max_grad_norm)
                     self.scaler.step(self.optimizer)
                     self.scaler.update()
+
+            rollout_id += 1
+            if rollout_id % 10 == 0:
+                recent = episode_rewards[-10:] if episode_rewards else [running_reward]
+                print(
+                    f"[PPO] step={global_step}/{self.config.total_timesteps}, "
+                    f"episodes={len(episode_rewards)}, mean_recent_reward={float(np.mean(recent)):.5f}"
+                )
 
         return {
             "episodes": float(len(episode_rewards)),

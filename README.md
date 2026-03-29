@@ -142,7 +142,7 @@ python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 4
 
 - `training_pipeline.py`：统一训练入口。
 - `rl_feature_extractors.py`：`ResNetFeatureExtractor` 与 `SimpleCNNFeatureExtractor`。
-- `EnvironmentWrapper.py`：环境封装与观测格式。
+- `env_adapter.py`：环境封装与观测格式。
 - `adaptive_ppo.py`：从零实现的 Adaptive PPO（GAE、PPO-Clip、混合精度）。
 - `train_adaptive_ppo.py`：Adaptive PPO 训练入口。
 - `SAC-train.py` / `A2C-train.py`：单次训练脚本。

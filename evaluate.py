@@ -1,5 +1,5 @@
 from stable_baselines3 import SAC, A2C
-from EnvironmentWrapper import CustomEnvWrapper
+from env_adapter import CustomEnvWrapper
 import matplotlib.pyplot as plt
 import numpy as np
 import tqdm

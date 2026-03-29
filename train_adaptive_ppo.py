@@ -6,19 +6,19 @@ import os
 
 import torch
 
-from EnvironmentWrapper import CustomEnvWrapper
+from env_adapter import CustomEnvWrapper
 from adaptive_ppo import ActorCritic, AdaptivePPOTrainer, PPOConfig
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Adaptive PPO on gym_sharpening with variable image sizes.")
     parser.add_argument("--env-name", default="Sharpening_AO_system", type=str)
-    parser.add_argument("--total-timesteps", default=400_000, type=int)
-    parser.add_argument("--rollout-steps", default=2048, type=int)
-    parser.add_argument("--batch-size", default=256, type=int)
-    parser.add_argument("--epochs", default=10, type=int)
-    parser.add_argument("--latent-dim", default=512, type=int)
-    parser.add_argument("--encoder-max-side", default=512, type=int)
+    parser.add_argument("--total-timesteps", default=120_000, type=int)
+    parser.add_argument("--rollout-steps", default=512, type=int)
+    parser.add_argument("--batch-size", default=128, type=int)
+    parser.add_argument("--epochs", default=4, type=int)
+    parser.add_argument("--latent-dim", default=256, type=int)
+    parser.add_argument("--encoder-max-side", default=256, type=int)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-path", default="models/adaptive_ppo.pt")
     return parser.parse_args()
