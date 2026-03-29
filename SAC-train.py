@@ -8,7 +8,7 @@ config.update(
         "cbam_depth": 2,
         "use_pretrained_resnet": True,
         "resnet_input_size": (224, 224),
-        "render_during_training": False,  # set True to watch training live
+        "render_during_training": True,  # set True to watch training live
         "render_every_n_steps": 200,
         "total_timesteps": 100_000,
         "buffer_size": 200_000,

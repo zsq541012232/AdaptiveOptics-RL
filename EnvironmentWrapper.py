@@ -72,6 +72,8 @@ class CustomEnvWrapper(gym.Env):
 
     def render(self, mode='animation', episode=None, iteration=None, tot_rewards=None, loc='test'):
         if mode == 'animation':
+            if not plt.isinteractive():
+                plt.ion()
             if not hasattr(self, 'fig'):
                 self.fig, self.axes = plt.subplots(2, 2, figsize=(10, 10))
             for ax in self.axes.ravel():
@@ -128,6 +130,9 @@ class CustomEnvWrapper(gym.Env):
                     os.makedirs(f"figures/animations/{loc}")
 
                 plt.savefig(f"figures/animations/{loc}/{episode}_{iteration}.png")
+            self.fig.canvas.draw_idle()
+            self.fig.canvas.flush_events()
+            plt.pause(0.001)
 
     def close(self):
         if hasattr(self.env, "close"):
