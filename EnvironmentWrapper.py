@@ -8,50 +8,62 @@ import hcipy as hp
 import matplotlib.pyplot as plt
 import os
 
+
 class CustomEnvWrapper(gym.Env):
-    def __init__(self, name):
-        
+    def __init__(self, name, use_image_observation=False):
+        self.use_image_observation = use_image_observation
+
         if name == "Sharpening_AO_system":
             self.env = Sharpening_AO_system()
-            self.action_space = gym.spaces.Box(low=-0.3, high=0.3, shape=(self.env.num_modes,), dtype=np.float32)
-            self.observation_space = gym.spaces.Box(low=0, high=1., shape=self.env.observation_space.shape, dtype=np.float32)
-
         elif name == "Sharpening_AO_system_easy":
             self.env = Sharpening_AO_system_easy()
-            self.action_space = gym.spaces.Box(low=-0.3, high=0.3, shape=(self.env.num_modes,), dtype=np.float32)
-            self.observation_space = gym.spaces.Box(low=0, high=1., shape=self.env.observation_space.shape, dtype=np.float32)
-
         elif name == "Centering_AO_system":
             self.env = Centering_AO_system()
-            self.action_space = gym.spaces.Box(low=-0.3, high=0.3, shape=(self.env.num_modes,), dtype=np.float32)
-            self.observation_space = gym.spaces.Box(low=0, high=1., shape=self.env.observation_space.shape, dtype=np.float32)
-
-        elif name == "Darkhole_AO_system": ## needs fixing for observation space
+        elif name == "Darkhole_AO_system":  # needs fixing for observation space
             self.env = Darkhole_AO_system()
-            self.action_space = gym.spaces.Box(low=-0.3, high=0.3, shape=(self.env.num_modes,), dtype=np.float32)
-            self.observation_space = gym.spaces.Box(low=0, high=1., shape=self.env.observation_space.shape, dtype=np.float32)
-
         else:
-            raise ValueError("Invalid environment name: ", self.name)
+            raise ValueError(f"Invalid environment name: {name}")
+
+        self.action_space = gym.spaces.Box(
+            low=-0.3,
+            high=0.3,
+            shape=(self.env.num_modes,),
+            dtype=np.float32,
+        )
+
+        self._base_observation_shape = self.env.observation_space.shape
+        if self.use_image_observation and len(self._base_observation_shape) == 2:
+            self.observation_space = gym.spaces.Box(
+                low=0,
+                high=1.0,
+                shape=(1, *self._base_observation_shape),
+                dtype=np.float32,
+            )
+        else:
+            self.observation_space = gym.spaces.Box(
+                low=0,
+                high=1.0,
+                shape=self._base_observation_shape,
+                dtype=np.float32,
+            )
+
+    def _format_observation(self, observation):
+        if hasattr(observation, "shaped"):
+            observation = observation.shaped
+
+        observation = np.asarray(observation, dtype=np.float32)
+
+        if self.use_image_observation and observation.ndim == 2:
+            return observation[None, ...]
+        return observation
 
     def step(self, action):
-        # 1. Unpack all 5 values from the base environment
         observation, reward, terminated, truncated, info = self.env.step(action)
-
-        # 2. REMOVE the manual reset logic.
-        # SB3 handles resets automatically. Manually calling reset() here
-        # causes observation shape errors because reset() returns (obs, info).
-
-        # 3. Return all 5 values to satisfy the Gymnasium API
-        return observation, reward, terminated, truncated, info
+        return self._format_observation(observation), reward, terminated, truncated, info
 
     def reset(self, seed=None, options=None):
-        # 1. Accept seed/options to satisfy the Gymnasium/SB3 API
-        # 2. Call the base reset (Sharpening_AO_system returns just observation)
         observation = self.env.reset()
-
-        # 3. Return (observation, info_dict) as required by Gymnasium
-        return observation, {}
+        return self._format_observation(observation), {}
 
     def render(self, mode='animation', episode=None, iteration=None, tot_rewards=None, loc='test'):
         if mode == 'animation':
@@ -93,7 +105,7 @@ class CustomEnvWrapper(gym.Env):
                 self.cbar3.update_normal(im3)
             else:
                 self.cbar3 = plt.colorbar(im3)
-            
+
             plt.sca(self.axes[1, 1])
 
             if episode is not None:
@@ -111,5 +123,7 @@ class CustomEnvWrapper(gym.Env):
                     os.makedirs(f"figures/animations/{loc}")
 
                 plt.savefig(f"figures/animations/{loc}/{episode}_{iteration}.png")
-                # plt.savefig(f"figures/animations/{loc}/svg_{episode}_{iteration}.svg")
 
+    def close(self):
+        if hasattr(self.env, "close"):
+            self.env.close()
