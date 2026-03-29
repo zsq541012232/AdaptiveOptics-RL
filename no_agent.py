@@ -1,5 +1,5 @@
 import numpy as np
-from EnvironmentWrapper import CustomEnvWrapper
+from env_adapter import CustomEnvWrapper
 import tqdm
 from torch.utils.tensorboard import SummaryWriter
 

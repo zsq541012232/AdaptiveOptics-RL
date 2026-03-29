@@ -110,7 +110,7 @@ def MakeVideo(name: str, fps: int = 4, freeze: float = 1):
 
 
 if __name__ == '__main__':
-    from EnvironmentWrapper import CustomEnvWrapper
+    from env_adapter import CustomEnvWrapper
     from stable_baselines3 import SAC
 
     # Sharpening AO system easy

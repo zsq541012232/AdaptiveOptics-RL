@@ -99,8 +99,16 @@ python A2C-train.py
 ### 训练（Adaptive PPO，自定义算法）
 
 ```bash
-python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 400000 --device cuda
+python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 120000 --device cuda
 ```
+
+训练时会输出 TensorBoard 日志路径，默认在 `runs/adaptive_ppo/`：
+
+```bash
+tensorboard --logdir runs/adaptive_ppo --port 6006
+```
+
+浏览器打开 `http://localhost:6006` 即可监控 `train/episode_reward`、`train/policy_loss`、`train/value_loss` 等指标。
 
 ---
 
@@ -142,7 +150,7 @@ python train_adaptive_ppo.py --env-name Sharpening_AO_system --total-timesteps 4
 
 - `training_pipeline.py`：统一训练入口。
 - `rl_feature_extractors.py`：`ResNetFeatureExtractor` 与 `SimpleCNNFeatureExtractor`。
-- `EnvironmentWrapper.py`：环境封装与观测格式。
+- `env_adapter.py`：环境封装与观测格式。
 - `adaptive_ppo.py`：从零实现的 Adaptive PPO（GAE、PPO-Clip、混合精度）。
 - `train_adaptive_ppo.py`：Adaptive PPO 训练入口。
 - `SAC-train.py` / `A2C-train.py`：单次训练脚本。

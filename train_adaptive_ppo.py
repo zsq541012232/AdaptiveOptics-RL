@@ -5,22 +5,25 @@ import json
 import os
 
 import torch
+from torch.utils.tensorboard import SummaryWriter
 
-from EnvironmentWrapper import CustomEnvWrapper
+from env_adapter import CustomEnvWrapper
 from adaptive_ppo import ActorCritic, AdaptivePPOTrainer, PPOConfig
 
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Train Adaptive PPO on gym_sharpening with variable image sizes.")
     parser.add_argument("--env-name", default="Sharpening_AO_system", type=str)
-    parser.add_argument("--total-timesteps", default=400_000, type=int)
-    parser.add_argument("--rollout-steps", default=2048, type=int)
-    parser.add_argument("--batch-size", default=256, type=int)
-    parser.add_argument("--epochs", default=10, type=int)
-    parser.add_argument("--latent-dim", default=512, type=int)
-    parser.add_argument("--encoder-max-side", default=512, type=int)
+    parser.add_argument("--total-timesteps", default=120_000, type=int)
+    parser.add_argument("--rollout-steps", default=512, type=int)
+    parser.add_argument("--batch-size", default=128, type=int)
+    parser.add_argument("--epochs", default=4, type=int)
+    parser.add_argument("--latent-dim", default=256, type=int)
+    parser.add_argument("--encoder-max-side", default=256, type=int)
     parser.add_argument("--device", default="cuda" if torch.cuda.is_available() else "cpu")
     parser.add_argument("--save-path", default="models/adaptive_ppo.pt")
+    parser.add_argument("--tensorboard-log-dir", default="runs/adaptive_ppo", type=str)
+    parser.add_argument("--run-name", default=None, type=str)
     return parser.parse_args()
 
 
@@ -45,7 +48,10 @@ def main():
         epochs=args.epochs,
     )
 
-    trainer = AdaptivePPOTrainer(env=env, model=model, config=config, device=args.device)
+    run_name = args.run_name or f"ppo-{args.env_name}-{args.total_timesteps}steps"
+    writer = SummaryWriter(log_dir=os.path.join(args.tensorboard_log_dir, run_name))
+
+    trainer = AdaptivePPOTrainer(env=env, model=model, config=config, device=args.device, writer=writer)
     metrics = trainer.train()
 
     torch.save(
@@ -61,6 +67,9 @@ def main():
     )
 
     print(json.dumps(metrics, indent=2))
+    print(f"TensorBoard logs saved to: {os.path.join(args.tensorboard_log_dir, run_name)}")
+
+    writer.close()
     env.close()
 
 
